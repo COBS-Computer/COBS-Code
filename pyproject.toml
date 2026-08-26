@@ -7,7 +7,10 @@ name = "cobs"
 version = "0.1.0"
 description = "Patient-specific pelvic floor FEA: model generation, FEBio simulation, and results analysis."
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "numpy",
+    "matplotlib",
+]
 
 [project.optional-dependencies]
 dev = ["pytest"]
