@@ -1,0 +1,4 @@
+theme: jekyll-theme-minimal
+title: COBS Code
+description: Patient-specific pelvic floor FEA — Python model generation, FEBio simulation, Python analysis.
+show_downloads: false
