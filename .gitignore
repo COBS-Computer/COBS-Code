@@ -10,6 +10,7 @@ env/
 
 # FEBio / simulation output
 *.log
+!tests/fixtures/*.log
 *.xplt
 *.vtk
 
@@ -18,6 +19,9 @@ env/
 Thumbs.db
 .vscode/
 .idea/
+
+# Claude Code local project state
+.claude/
 
 # Data (avoid committing large/patient data by default)
 /data/
