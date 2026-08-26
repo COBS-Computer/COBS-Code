@@ -1,4 +1,13 @@
-"""Read results back out of an FEBio .log file."""
+"""Read results back out of an FEBio .log file.
+
+Deliberately log-based rather than .xplt-based: .xplt is FEBio's proprietary
+binary plot format, and the two existing open-source readers (febio-python,
+and pyfebio from the FEBio developers) both fail on real FEBio 4.12 output --
+one rejects the file's xplt version outright, the other throws a KeyError
+partway through parsing. Log-based reading works today because our models
+request `<Output><logfile><node_data data="x;y;z"/>` explicitly; revisit
+.xplt if a run needs fields the log can't carry (stress, strain, etc.).
+"""
 
 from __future__ import annotations
 
