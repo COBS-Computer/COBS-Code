@@ -36,6 +36,10 @@ def test_get_nodeset_ids(model):
     assert model.get_nodeset_ids("FixedNodes") == [1, 4]
 
 
+def test_get_nodeset_ids_flat_text_format(model):
+    assert model.get_nodeset_ids("FixedNodesFlat") == [1, 2, 3]
+
+
 def test_get_part_node_ids(model):
     assert model.get_part_node_ids("Part1") == {1, 2, 3, 4}
 
@@ -73,12 +77,18 @@ def test_set_pressure_load_unknown_surface_raises(model):
 
 
 def test_get_all_node_coordinates(model):
-    assert model.get_all_node_coordinates() == {
-        1: (0.0, 0.0, 0.0),
-        2: (1.0, 0.0, 0.0),
-        3: (1.0, 1.0, 0.0),
-        4: (0.0, 1.0, 0.0),
-    }
+    coords = model.get_all_node_coordinates()
+    assert coords[1] == (0.0, 0.0, 0.0)
+    assert coords[2] == (1.0, 0.0, 0.0)
+    assert coords[3] == (1.0, 1.0, 0.0)
+    assert coords[4] == (0.0, 1.0, 0.0)
+    assert len(coords) == 13
+
+
+def test_get_shell_free_edge_node_ids_excludes_interior_node(model):
+    boundary = model.get_shell_free_edge_node_ids(["GridPart"])
+    assert boundary == {10, 11, 12, 13, 15, 16, 17, 18}
+    assert 14 not in boundary
 
 
 def test_get_named_node_ids(model):

@@ -70,10 +70,17 @@ class FebModel:
     # -- named node sets -------------------------------------------------
 
     def get_nodeset_ids(self, nodeset_name: str) -> list[int]:
-        nodes = self.root.find(f".//Mesh/NodeSet[@name='{nodeset_name}']")
-        if nodes is None:
+        """Ids in a <NodeSet>. FEBio writes these two ways: as child <node id=.../>
+        elements, or as a single comma-separated id list in the element's text --
+        this handles both.
+        """
+        nodeset = self.root.find(f".//Mesh/NodeSet[@name='{nodeset_name}']")
+        if nodeset is None:
             raise KeyError(f"No NodeSet named {nodeset_name!r}")
-        return [int(n.get("id")) for n in nodes.findall("node")]
+        children = nodeset.findall("node")
+        if children:
+            return [int(n.get("id")) for n in children]
+        return [int(v) for v in nodeset.text.replace("\n", ",").split(",") if v.strip()]
 
     # -- parts / elements --------------------------------------------------
 
@@ -83,6 +90,32 @@ class FebModel:
         if elements is None:
             raise KeyError(f"No part named {part_name!r}")
         return self._ids_from_facet_text(elements)
+
+    def get_shell_free_edge_node_ids(self, part_names: list[str]) -> set[int]:
+        """Nodes on the free boundary of a set of shell (tri3/quad4) element blocks.
+
+        A "free" edge is one used by exactly one element in the given blocks --
+        this is the mesh boundary, whether that's a true outer edge or a cut
+        against a neighboring, differently-named region.
+        """
+        edge_counts: dict[frozenset[int], int] = {}
+        for part_name in part_names:
+            elements = self.root.find(f".//Mesh/Elements[@name='{part_name}']")
+            if elements is None:
+                raise KeyError(f"No part named {part_name!r}")
+            for facet in elements:
+                if not facet.text:
+                    continue
+                ids = [int(n) for n in facet.text.strip().split(",")]
+                for i in range(len(ids)):
+                    edge = frozenset((ids[i], ids[(i + 1) % len(ids)]))
+                    edge_counts[edge] = edge_counts.get(edge, 0) + 1
+
+        boundary_nodes: set[int] = set()
+        for edge, count in edge_counts.items():
+            if count == 1:
+                boundary_nodes.update(edge)
+        return boundary_nodes
 
     def get_surface_node_ids(self, surface_name: str) -> set[int]:
         """All node ids referenced by the facets of a named surface."""

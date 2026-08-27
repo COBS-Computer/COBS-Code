@@ -2,13 +2,20 @@ from pathlib import Path
 
 import pytest
 
-from cobs.abaqus import list_part_names, read_part_nodes, read_part_nset
+from cobs.abaqus import (
+    hex8_free_surface_node_ids,
+    list_part_names,
+    read_part_elements,
+    read_part_elset,
+    read_part_nodes,
+    read_part_nset,
+)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample.inp"
 
 
 def test_list_part_names():
-    assert list_part_names(FIXTURE) == ["PartA", "PartB"]
+    assert list_part_names(FIXTURE) == ["PartA", "PartB", "PartC"]
 
 
 def test_read_part_nodes():
@@ -50,3 +57,28 @@ def test_read_part_nset_wrong_part_raises():
 def test_read_part_nset_unknown_name_raises():
     with pytest.raises(KeyError):
         read_part_nset(FIXTURE, "PartA", "NoSuchSet")
+
+
+def test_read_part_elements():
+    elements = read_part_elements(FIXTURE, "PartA")
+    assert elements == {1: [1, 2, 3, 4], 2: [2, 3, 4, 5]}
+
+
+def test_read_part_elements_handles_line_continuation():
+    elements = read_part_elements(FIXTURE, "PartA")
+    assert elements[2] == [2, 3, 4, 5]
+
+
+def test_read_part_elset_explicit():
+    assert read_part_elset(FIXTURE, "PartA", "Elset-Explicit") == [1]
+
+
+def test_read_part_elset_generate():
+    assert read_part_elset(FIXTURE, "PartA", "Elset-Generate") == [1, 2]
+
+
+def test_hex8_free_surface_node_ids_excludes_interior_node():
+    elements = read_part_elements(FIXTURE, "PartC")
+    boundary = hex8_free_surface_node_ids(elements, elements.keys())
+    assert 14 not in boundary
+    assert boundary == set(range(1, 28)) - {14}

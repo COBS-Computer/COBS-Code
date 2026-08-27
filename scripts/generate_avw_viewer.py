@@ -17,6 +17,8 @@ import numpy as np
 from cobs.abaqus import list_part_names, read_part_nodes, read_part_nset
 from cobs.febio import FebModel
 
+from align_avw import abaqus_avw_end_arc, febio_avw_end_arc
+
 FEB_AVW_NODES_BLOCK = "OPAL325_AVW_v6-1"
 INP_AVW_PART = "VW-PeB"
 INP_AVW_NSET = "Set-AVW"
@@ -49,15 +51,22 @@ def main(feb_path: str, inp_path: str, out_path: str = "avw_viewer.html") -> Non
         else:
             rest_of_abaqus.extend(part_nodes.values())
 
+    feb_arc = list(febio_avw_end_arc(model).values())
+    inp_arc = abaqus_avw_end_arc(inp_path)
+
     html = TEMPLATE_PATH.read_text(encoding="utf-8")
     html = html.replace("__REST_B64__", _b64(rest_of_model))
     html = html.replace("__ABQ_B64__", _b64(rest_of_abaqus))
     html = html.replace("__OLD_B64__", _b64(old_avw))
     html = html.replace("__NEW_B64__", _b64(new_avw))
+    html = html.replace("__FEBARC_B64__", _b64(feb_arc))
+    html = html.replace("__INPARC_B64__", _b64(inp_arc))
     html = html.replace("__REST_COUNT__", str(len(rest_of_model)))
     html = html.replace("__ABQ_COUNT__", str(len(rest_of_abaqus)))
     html = html.replace("__OLD_COUNT__", str(len(old_avw)))
     html = html.replace("__NEW_COUNT__", str(len(new_avw)))
+    html = html.replace("__FEBARC_COUNT__", str(len(feb_arc)))
+    html = html.replace("__INPARC_COUNT__", str(len(inp_arc)))
 
     Path(out_path).write_text(html, encoding="utf-8")
     print(f"Wrote {out_path}")
@@ -65,6 +74,8 @@ def main(feb_path: str, inp_path: str, out_path: str = "avw_viewer.html") -> Non
     print(f"Abaqus model (without AVW): {len(rest_of_abaqus)} nodes")
     print(f"Old AVW (FEBio):            {len(old_avw)} nodes")
     print(f"New AVW (Abaqus):           {len(new_avw)} nodes")
+    print(f"FEBio AVW end arc:          {len(feb_arc)} nodes")
+    print(f"Abaqus AVW end arc:         {len(inp_arc)} nodes")
 
 
 if __name__ == "__main__":

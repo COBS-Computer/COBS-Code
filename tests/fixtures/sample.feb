@@ -14,8 +14,25 @@
 			<node id="3">1,1,0</node>
 			<node id="4">0,1,0</node>
 		</Nodes>
+		<Nodes name="GridNodes">
+			<node id="10">0,2,0</node>
+			<node id="11">1,2,0</node>
+			<node id="12">2,2,0</node>
+			<node id="13">0,1,0</node>
+			<node id="14">1,1,0</node>
+			<node id="15">2,1,0</node>
+			<node id="16">0,0,0</node>
+			<node id="17">1,0,0</node>
+			<node id="18">2,0,0</node>
+		</Nodes>
 		<Elements type="quad4" name="Part1">
 			<elem id="1">1,2,3,4</elem>
+		</Elements>
+		<Elements type="quad4" name="GridPart">
+			<elem id="1">10,13,14,11</elem>
+			<elem id="2">11,14,15,12</elem>
+			<elem id="3">13,16,17,14</elem>
+			<elem id="4">14,17,18,15</elem>
 		</Elements>
 		<Surface name="TopSurface">
 			<quad4 id="1">1,2,3,4</quad4>
@@ -23,6 +40,10 @@
 		<NodeSet name="FixedNodes">
 			<node id="1"/>
 			<node id="4"/>
+		</NodeSet>
+		<NodeSet name="FixedNodesFlat">
+			1, 2,
+			3
 		</NodeSet>
 	</Mesh>
 	<MeshDomains>

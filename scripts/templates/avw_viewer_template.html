@@ -14,6 +14,8 @@
   --pt-abq-context:#4c8f7a;
   --pt-old:#d1573f;
   --pt-new:#e8a33d;
+  --pt-feb-arc:#f2efe6;
+  --pt-inp-arc:#4dd9e8;
   --focus:#e8a33d;
 }
 *{box-sizing:border-box}
@@ -36,6 +38,8 @@ canvas.gl:active{cursor:grabbing}
   top:16px;
   left:16px;
   width:248px;
+  max-height:calc(100% - 32px);
+  overflow-y:auto;
   background:color-mix(in srgb, var(--panel) 88%, transparent);
   backdrop-filter:blur(6px);
   border:0.5px solid var(--line);
@@ -155,7 +159,7 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
 }
 </style>
 <div class="viewer-root" id="root">
-  <h2 class="sr-only">Interactive 3D point cloud comparing the anterior vaginal wall tissue from an FEBio model against a replacement version from an Abaqus file, alongside the rest of both models for context. Drag to rotate, scroll to zoom.</h2>
+  <h2 class="sr-only">Interactive 3D point cloud comparing the anterior vaginal wall tissue from an FEBio model against a replacement version from an Abaqus file, alongside the rest of both models for context, with each model's candidate end-arc boundary highlighted. Drag to rotate, scroll to zoom.</h2>
   <canvas class="gl" id="gl"></canvas>
   <div class="panel">
     <h1>AVW comparison</h1>
@@ -183,6 +187,18 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
       <span class="count" id="cnt-new">__NEW_COUNT__</span>
       <input type="checkbox" id="tg-new" checked>
     </div>
+    <div class="row">
+      <span class="swatch" style="background:var(--pt-feb-arc)"></span>
+      <label for="tg-febarc">FEBio end arc (candidate)</label>
+      <span class="count" id="cnt-febarc">__FEBARC_COUNT__</span>
+      <input type="checkbox" id="tg-febarc" checked>
+    </div>
+    <div class="row">
+      <span class="swatch" style="background:var(--pt-inp-arc)"></span>
+      <label for="tg-inparc">Abaqus end arc (candidate)</label>
+      <span class="count" id="cnt-inparc">__INPARC_COUNT__</span>
+      <input type="checkbox" id="tg-inparc" checked>
+    </div>
     <div class="ctrl-block">
       <div class="ctrl-label"><span>Point size</span><span class="val" id="size-val">2.5</span></div>
       <input type="range" id="ptsize" min="1" max="6" step="0.5" value="2.5">
@@ -194,16 +210,20 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
 <script>
 (function(){
   var DATA = {
-    rest:   { b64: "__REST_B64__", count: __REST_COUNT__ },
-    abq:    { b64: "__ABQ_B64__",  count: __ABQ_COUNT__ },
-    old:    { b64: "__OLD_B64__",  count: __OLD_COUNT__ },
-    newavw: { b64: "__NEW_B64__",  count: __NEW_COUNT__ }
+    rest:   { b64: "__REST_B64__",   count: __REST_COUNT__ },
+    abq:    { b64: "__ABQ_B64__",    count: __ABQ_COUNT__ },
+    old:    { b64: "__OLD_B64__",    count: __OLD_COUNT__ },
+    newavw: { b64: "__NEW_B64__",    count: __NEW_COUNT__ },
+    febarc: { b64: "__FEBARC_B64__", count: __FEBARC_COUNT__ },
+    inparc: { b64: "__INPARC_B64__", count: __INPARC_COUNT__ }
   };
   var COLORS = {
     rest:   [0x4c/255, 0x6b/255, 0x8a/255],
     abq:    [0x4c/255, 0x8f/255, 0x7a/255],
     old:    [0xd1/255, 0x57/255, 0x3f/255],
-    newavw: [0xe8/255, 0xa3/255, 0x3d/255]
+    newavw: [0xe8/255, 0xa3/255, 0x3d/255],
+    febarc: [0xf2/255, 0xef/255, 0xe6/255],
+    inparc: [0x4d/255, 0xd9/255, 0xe8/255]
   };
 
   function decode(b64){
@@ -361,7 +381,7 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
 
   var state = { yaw: 0.6, pitch: -0.35, dist: 3.2, ptSize: 2.5 };
   var defaultState = { yaw: 0.6, pitch: -0.35, dist: 3.2 };
-  var visible = { rest: true, abq: true, old: true, newavw: true };
+  var visible = { rest: true, abq: true, old: true, newavw: true, febarc: true, inparc: true };
 
   function render(){
     resize();
@@ -385,8 +405,10 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
     var uSize = gl.getUniformLocation(prog, 'uSize');
     gl.uniformMatrix4fv(uMVP, false, mvp);
 
-    var order = ['rest', 'abq', 'old', 'newavw'];
-    var alphas = { rest: 0.35, abq: 0.35, old: 0.75, newavw: 0.85 };
+    var order = ['rest', 'abq', 'old', 'newavw', 'febarc', 'inparc'];
+    var alphas = { rest: 0.35, abq: 0.35, old: 0.75, newavw: 0.85, febarc: 1.0, inparc: 1.0 };
+    var sizeMul = { rest: 1, abq: 1, old: 1, newavw: 1, febarc: 2.2, inparc: 2.2 };
+    var dprBoost = window.devicePixelRatio > 1 ? 1.5 : 1;
     order.forEach(function(key){
       if (!visible[key]) return;
       gl.bindBuffer(gl.ARRAY_BUFFER, buffers[key]);
@@ -394,7 +416,7 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
       gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
       gl.uniform3fv(uColor, COLORS[key]);
       gl.uniform1f(uAlpha, alphas[key]);
-      gl.uniform1f(uSize, state.ptSize * (window.devicePixelRatio > 1 ? 1.5 : 1));
+      gl.uniform1f(uSize, state.ptSize * dprBoost * sizeMul[key]);
       gl.drawArrays(gl.POINTS, 0, normPoints[key].length / 3);
     });
 
@@ -466,6 +488,8 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
   document.getElementById('tg-abq').addEventListener('change', function(e){ visible.abq = e.target.checked; });
   document.getElementById('tg-old').addEventListener('change', function(e){ visible.old = e.target.checked; });
   document.getElementById('tg-new').addEventListener('change', function(e){ visible.newavw = e.target.checked; });
+  document.getElementById('tg-febarc').addEventListener('change', function(e){ visible.febarc = e.target.checked; });
+  document.getElementById('tg-inparc').addEventListener('change', function(e){ visible.inparc = e.target.checked; });
 
   var sizeSlider = document.getElementById('ptsize');
   var sizeVal = document.getElementById('size-val');
