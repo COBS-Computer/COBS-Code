@@ -72,6 +72,24 @@ def test_set_pressure_load_unknown_surface_raises(model):
         model.set_pressure_load(0.05, surface_name="NoSuchSurface")
 
 
+def test_get_all_node_coordinates(model):
+    assert model.get_all_node_coordinates() == {
+        1: (0.0, 0.0, 0.0),
+        2: (1.0, 0.0, 0.0),
+        3: (1.0, 1.0, 0.0),
+        4: (0.0, 1.0, 0.0),
+    }
+
+
+def test_get_named_node_ids(model):
+    assert model.get_named_node_ids("AllNodes") == {1, 2, 3, 4}
+
+
+def test_get_named_node_ids_unknown_raises(model):
+    with pytest.raises(KeyError):
+        model.get_named_node_ids("NoSuchBlock")
+
+
 def test_save_round_trips(model, tmp_path):
     model.set_node_coordinates(1, (1.5, 2.5, 3.5))
     out_path = tmp_path / "out.feb"

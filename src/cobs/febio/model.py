@@ -52,6 +52,21 @@ class FebModel:
         for node_id, xyz in coordinates.items():
             self.set_node_coordinates(node_id, xyz)
 
+    def get_all_node_coordinates(self) -> dict[int, tuple[float, float, float]]:
+        """Every node in the mesh, across all (possibly multiple, named) Nodes blocks."""
+        result = {}
+        for node in self.root.findall(".//Nodes/node"):
+            x, y, z = node.text.split(",")
+            result[int(node.get("id"))] = (float(x), float(y), float(z))
+        return result
+
+    def get_named_node_ids(self, nodes_block_name: str) -> set[int]:
+        """Ids in a named Nodes block (FEBioStudio tags nodes by source object this way)."""
+        block = self.root.find(f".//Nodes[@name='{nodes_block_name}']")
+        if block is None:
+            raise KeyError(f"No Nodes block named {nodes_block_name!r}")
+        return {int(n.get("id")) for n in block.findall("node")}
+
     # -- named node sets -------------------------------------------------
 
     def get_nodeset_ids(self, nodeset_name: str) -> list[int]:
