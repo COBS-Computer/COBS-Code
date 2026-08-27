@@ -5,6 +5,7 @@ import pytest
 from cobs.abaqus import (
     hex8_free_surface_node_ids,
     list_part_names,
+    quad4_free_edge_node_ids,
     read_part_elements,
     read_part_elset,
     read_part_nodes,
@@ -15,7 +16,7 @@ FIXTURE = Path(__file__).parent / "fixtures" / "sample.inp"
 
 
 def test_list_part_names():
-    assert list_part_names(FIXTURE) == ["PartA", "PartB", "PartC"]
+    assert list_part_names(FIXTURE) == ["PartA", "PartB", "PartC", "PartD"]
 
 
 def test_read_part_nodes():
@@ -82,3 +83,10 @@ def test_hex8_free_surface_node_ids_excludes_interior_node():
     boundary = hex8_free_surface_node_ids(elements, elements.keys())
     assert 14 not in boundary
     assert boundary == set(range(1, 28)) - {14}
+
+
+def test_quad4_free_edge_node_ids_excludes_interior_node():
+    elements = read_part_elements(FIXTURE, "PartD")
+    boundary = quad4_free_edge_node_ids(elements, elements.keys())
+    assert 5 not in boundary
+    assert boundary == set(range(1, 10)) - {5}

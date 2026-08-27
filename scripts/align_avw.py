@@ -13,10 +13,16 @@ from __future__ import annotations
 
 import numpy as np
 
-from cobs.abaqus import read_part_nodes, read_part_nset
+from cobs.abaqus import (
+    quad4_free_edge_node_ids,
+    read_part_elements,
+    read_part_nodes,
+    read_part_nset,
+)
 from cobs.febio import FebModel
 
 FEB_PM_NODES_BLOCK = "OPAL325_PM_mid-1"
+FEB_PM_SHELL_PARTS = ["_PickedSet5(5)", "_PickedSet5(5)__2"]
 FEB_AVW_NODES_BLOCK = "OPAL325_AVW_v6-1"
 INP_PM_PART = "PM_Plane"
 INP_AVW_PART = "VW-PeB"
@@ -33,6 +39,26 @@ def febio_pm_arc(model: FebModel) -> dict[int, tuple[float, float, float]]:
 def abaqus_pm_arc(inp_path: str) -> list[tuple[float, float, float]]:
     """xyz points for the Abaqus perineal membrane part."""
     return list(read_part_nodes(inp_path, INP_PM_PART).values())
+
+
+def febio_pm_boundary(model: FebModel) -> np.ndarray:
+    """xyz points on the true free-edge rim of the FEBio perineal membrane shell.
+
+    Using only the rim (not every point on the membrane's surface) makes the
+    straight-edge landmark much more reliable: interior points on a surface
+    that isn't perfectly flat can distort a hull computed from everything.
+    """
+    all_nodes = model.get_all_node_coordinates()
+    boundary_ids = model.get_shell_free_edge_node_ids(FEB_PM_SHELL_PARTS)
+    return np.array([all_nodes[i] for i in boundary_ids])
+
+
+def abaqus_pm_boundary(inp_path: str) -> np.ndarray:
+    """xyz points on the true free-edge rim of the Abaqus perineal membrane shell."""
+    nodes = read_part_nodes(inp_path, INP_PM_PART)
+    elements = read_part_elements(inp_path, INP_PM_PART)
+    boundary_ids = quad4_free_edge_node_ids(elements, elements.keys())
+    return np.array([nodes[i] for i in boundary_ids])
 
 
 def _convex_hull_2d(points: np.ndarray) -> np.ndarray:
@@ -119,19 +145,18 @@ def compute_pm_rotation(model: FebModel, inp_path: str) -> tuple[np.ndarray, np.
     Apply to any Abaqus-space point `p` as: pivot + rotation @ (p - pivot).
     """
     all_nodes = model.get_all_node_coordinates()
-    feb_pm = np.array(list(febio_pm_arc(model).values()))
-    feb_pm_centroid = feb_pm.mean(axis=0)
+    feb_pm_boundary = febio_pm_boundary(model)
     feb_avw_ids = model.get_named_node_ids(FEB_AVW_NODES_BLOCK)
     feb_avw_centroid = np.array([all_nodes[i] for i in feb_avw_ids]).mean(axis=0)
 
-    inp_pm = np.array(abaqus_pm_arc(inp_path))
-    inp_pm_centroid = inp_pm.mean(axis=0)
+    inp_pm_centroid = np.array(abaqus_pm_arc(inp_path)).mean(axis=0)
+    inp_pm_boundary = abaqus_pm_boundary(inp_path)
     inp_nodes = read_part_nodes(inp_path, INP_AVW_PART)
     inp_avw_ids = read_part_nset(inp_path, INP_AVW_PART, INP_AVW_NSET)
     inp_avw_centroid = np.array([inp_nodes[i] for i in inp_avw_ids]).mean(axis=0)
 
-    feb_frame = _principal_frame(feb_pm, feb_pm_centroid, feb_avw_centroid)
-    inp_frame = _principal_frame(inp_pm, inp_pm_centroid, inp_avw_centroid)
+    feb_frame = _principal_frame(feb_pm_boundary, feb_pm_boundary.mean(axis=0), feb_avw_centroid)
+    inp_frame = _principal_frame(inp_pm_boundary, inp_pm_boundary.mean(axis=0), inp_avw_centroid)
 
     rotation = feb_frame @ inp_frame.T
     return rotation, inp_pm_centroid

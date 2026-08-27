@@ -50,6 +50,28 @@ def hex8_free_surface_node_ids(
     return boundary_nodes
 
 
+def quad4_free_edge_node_ids(
+    elements: dict[int, list[int]], element_ids: Iterable[int]
+) -> set[int]:
+    """Nodes on the free edge of a set of 4-node shell (S4/S4R) elements.
+
+    A "free" edge is one used by exactly one element among `element_ids` --
+    the shell-mesh analog of `hex8_free_surface_node_ids`.
+    """
+    edge_counts: dict[frozenset[int], int] = {}
+    for eid in element_ids:
+        nodes = elements[eid]
+        for i in range(4):
+            edge = frozenset((nodes[i], nodes[(i + 1) % 4]))
+            edge_counts[edge] = edge_counts.get(edge, 0) + 1
+
+    boundary_nodes: set[int] = set()
+    for edge, count in edge_counts.items():
+        if count == 1:
+            boundary_nodes.update(edge)
+    return boundary_nodes
+
+
 def _parse_keyword_line(line: str) -> tuple[str, dict[str, str], set[str]]:
     parts = [p.strip() for p in line.lstrip("*").split(",")]
     keyword = parts[0].upper()
