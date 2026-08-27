@@ -35,17 +35,64 @@ def abaqus_pm_arc(inp_path: str) -> list[tuple[float, float, float]]:
     return list(read_part_nodes(inp_path, INP_PM_PART).values())
 
 
-def _principal_frame(points: np.ndarray, centroid: np.ndarray, faces_toward: np.ndarray) -> np.ndarray:
-    """An orthonormal 3x3 frame (columns = basis vectors) fit to `points` by PCA.
+def _convex_hull_2d(points: np.ndarray) -> np.ndarray:
+    """Andrew's monotone-chain convex hull. `points` is (N, 2); returns hull
+    vertices in CCW order, no external dependency needed for this."""
+    pts = sorted(map(tuple, points))
 
-    PCA alone only determines each axis up to a sign flip, which for a rigid
-    registration would let the result come out mirrored or rotated 180
-    degrees from what's anatomically correct. Two conventions fix that:
-    the plane-normal axis (smallest-variance direction) is flipped to point
-    from `centroid` toward `faces_toward` -- the AVW tissue this membrane
-    borders, in both models -- and the long in-plane axis is flipped so the
-    shape's skew along it is positive, since a perineal membrane isn't
-    perfectly symmetric end to end.
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower: list[tuple[float, float]] = []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+
+    upper: list[tuple[float, float]] = []
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+
+    return np.array(lower[:-1] + upper[:-1])
+
+
+def _straight_edge_direction(
+    points: np.ndarray, centroid: np.ndarray, plane_u: np.ndarray, plane_v: np.ndarray
+) -> np.ndarray:
+    """Unit 3D vector from `centroid` toward the shape's straight edge.
+
+    The perineal membrane is D-shaped: one side is a nearly-straight cut
+    edge, the rest is a curved arch. Projected into its own plane, the
+    straight edge shows up as the single longest edge of the point cloud's
+    convex hull (the arch is curved, so it's made of many short hull edges
+    instead). `plane_u`/`plane_v` only need to span the plane -- the result
+    doesn't depend on their sign, since flipping both negates the 2D
+    coordinates and the recovered 3D midpoint direction is unchanged.
+    """
+    centered = points - centroid
+    coords_2d = np.column_stack([centered @ plane_u, centered @ plane_v])
+    hull = _convex_hull_2d(coords_2d)
+    n = len(hull)
+    edge_lengths = np.linalg.norm(np.roll(hull, -1, axis=0) - hull, axis=1)
+    longest = np.argmax(edge_lengths)
+    midpoint_2d = (hull[longest] + hull[(longest + 1) % n]) / 2
+    direction = midpoint_2d[0] * plane_u + midpoint_2d[1] * plane_v
+    return direction / np.linalg.norm(direction)
+
+
+def _principal_frame(points: np.ndarray, centroid: np.ndarray, faces_toward: np.ndarray) -> np.ndarray:
+    """An orthonormal 3x3 frame (columns = basis vectors) fit to `points`.
+
+    The plane normal comes from PCA (smallest-variance direction), flipped
+    to point from `centroid` toward `faces_toward` -- the AVW tissue this
+    membrane borders, in both models. The in-plane rotation is *not* taken
+    from PCA's other two axes, since their sign is ambiguous in a way that
+    can silently produce a result rotated 180 degrees from correct (arch
+    pointing the wrong way): instead one in-plane axis is pinned directly
+    to the straight-edge landmark (see `_straight_edge_direction`), which
+    is basis-independent and leaves no remaining ambiguity.
     """
     centered = points - centroid
     cov = np.cov(centered.T)
@@ -56,14 +103,12 @@ def _principal_frame(points: np.ndarray, centroid: np.ndarray, faces_toward: np.
     if np.dot(e3, faces_toward - centroid) < 0:
         e3 = -e3
 
-    if np.mean((centered @ e1) ** 3) < 0:
-        e1 = -e1
+    u = _straight_edge_direction(points, centroid, e1, e2)
+    u = u - np.dot(u, e3) * e3  # re-orthogonalize against e3 for precision
+    u /= np.linalg.norm(u)
+    v = np.cross(e3, u)
 
-    e2 = np.cross(e3, e1)
-    e2 /= np.linalg.norm(e2)
-    e1 = np.cross(e2, e3)
-
-    return np.column_stack([e1, e2, e3])
+    return np.column_stack([u, v, e3])
 
 
 def compute_pm_rotation(model: FebModel, inp_path: str) -> tuple[np.ndarray, np.ndarray]:
