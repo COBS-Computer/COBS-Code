@@ -1,5 +1,6 @@
 """Generate a self-contained, rotatable WebGL viewer comparing an FEBio
-model's AVW tissue against a replacement AVW from an Abaqus .inp file.
+model's AVW tissue against a replacement AVW from an Abaqus .inp file,
+plus each model's perineal membrane object as a registration reference.
 
 Produces a single .html file with the point-cloud data embedded -- open it
 directly in a browser, no server needed.
@@ -17,7 +18,7 @@ import numpy as np
 from cobs.abaqus import list_part_names, read_part_nodes, read_part_nset
 from cobs.febio import FebModel
 
-from align_avw import abaqus_avw_end_arc, febio_avw_end_arc
+from align_avw import abaqus_pm_arc, febio_pm_arc
 
 FEB_AVW_NODES_BLOCK = "OPAL325_AVW_v6-1"
 INP_AVW_PART = "VW-PeB"
@@ -51,8 +52,8 @@ def main(feb_path: str, inp_path: str, out_path: str = "avw_viewer.html") -> Non
         else:
             rest_of_abaqus.extend(part_nodes.values())
 
-    feb_arc = list(febio_avw_end_arc(model).values())
-    inp_arc = abaqus_avw_end_arc(inp_path)
+    feb_arc = list(febio_pm_arc(model).values())
+    inp_arc = abaqus_pm_arc(inp_path)
 
     html = TEMPLATE_PATH.read_text(encoding="utf-8")
     html = html.replace("__REST_B64__", _b64(rest_of_model))
@@ -74,8 +75,8 @@ def main(feb_path: str, inp_path: str, out_path: str = "avw_viewer.html") -> Non
     print(f"Abaqus model (without AVW): {len(rest_of_abaqus)} nodes")
     print(f"Old AVW (FEBio):            {len(old_avw)} nodes")
     print(f"New AVW (Abaqus):           {len(new_avw)} nodes")
-    print(f"FEBio AVW end arc:          {len(feb_arc)} nodes")
-    print(f"Abaqus AVW end arc:         {len(inp_arc)} nodes")
+    print(f"Perineal membrane (FEBio):  {len(feb_arc)} nodes")
+    print(f"Perineal membrane (Abaqus): {len(inp_arc)} nodes")
 
 
 if __name__ == "__main__":

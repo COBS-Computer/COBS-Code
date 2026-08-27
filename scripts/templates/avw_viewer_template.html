@@ -159,7 +159,7 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
 }
 </style>
 <div class="viewer-root" id="root">
-  <h2 class="sr-only">Interactive 3D point cloud comparing the anterior vaginal wall tissue from an FEBio model against a replacement version from an Abaqus file, alongside the rest of both models for context, with each model's candidate end-arc boundary highlighted. Drag to rotate, scroll to zoom.</h2>
+  <h2 class="sr-only">Interactive 3D point cloud comparing the anterior vaginal wall tissue from an FEBio model against a replacement version from an Abaqus file, alongside the rest of both models for context and each model's perineal membrane object as a registration reference. Drag to rotate, scroll to zoom.</h2>
   <canvas class="gl" id="gl"></canvas>
   <div class="panel">
     <h1>AVW comparison</h1>
@@ -189,13 +189,13 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
     </div>
     <div class="row">
       <span class="swatch" style="background:var(--pt-feb-arc)"></span>
-      <label for="tg-febarc">FEBio end arc (candidate)</label>
+      <label for="tg-febarc">Perineal membrane (FEBio)</label>
       <span class="count" id="cnt-febarc">__FEBARC_COUNT__</span>
       <input type="checkbox" id="tg-febarc" checked>
     </div>
     <div class="row">
       <span class="swatch" style="background:var(--pt-inp-arc)"></span>
-      <label for="tg-inparc">Abaqus end arc (candidate)</label>
+      <label for="tg-inparc">Perineal membrane (Abaqus)</label>
       <span class="count" id="cnt-inparc">__INPARC_COUNT__</span>
       <input type="checkbox" id="tg-inparc" checked>
     </div>
