@@ -18,7 +18,7 @@ import numpy as np
 from cobs.abaqus import list_part_names, read_part_nodes, read_part_nset
 from cobs.febio import FebModel
 
-from align_avw import abaqus_pm_arc, febio_pm_arc
+from align_avw import abaqus_pm_arc, apply_rotation, compute_pm_rotation, febio_pm_arc
 
 FEB_AVW_NODES_BLOCK = "OPAL325_AVW_v6-1"
 INP_AVW_PART = "VW-PeB"
@@ -54,6 +54,14 @@ def main(feb_path: str, inp_path: str, out_path: str = "avw_viewer.html") -> Non
 
     feb_arc = list(febio_pm_arc(model).values())
     inp_arc = abaqus_pm_arc(inp_path)
+
+    # Step 1 of the alignment: rotate the whole Abaqus point set (rigidly,
+    # about the Abaqus PM centroid) so its perineal membrane matches the
+    # FEBio one's orientation. No translation or scaling yet.
+    rotation, pivot = compute_pm_rotation(model, inp_path)
+    rest_of_abaqus = apply_rotation(rest_of_abaqus, rotation, pivot)
+    new_avw = apply_rotation(new_avw, rotation, pivot)
+    inp_arc = apply_rotation(inp_arc, rotation, pivot)
 
     html = TEMPLATE_PATH.read_text(encoding="utf-8")
     html = html.replace("__REST_B64__", _b64(rest_of_model))
