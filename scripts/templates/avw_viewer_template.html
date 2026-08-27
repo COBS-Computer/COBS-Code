@@ -11,6 +11,7 @@
   --ink-dim:#7b8494;
   --line:#2a313c;
   --pt-context:#4c6b8a;
+  --pt-abq-context:#4c8f7a;
   --pt-old:#d1573f;
   --pt-new:#e8a33d;
   --focus:#e8a33d;
@@ -154,15 +155,21 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
 }
 </style>
 <div class="viewer-root" id="root">
-  <h2 class="sr-only">Interactive 3D point cloud comparing the anterior vaginal wall tissue from an FEBio model against the rest of the model and a replacement version from an Abaqus file. Drag to rotate, scroll to zoom.</h2>
+  <h2 class="sr-only">Interactive 3D point cloud comparing the anterior vaginal wall tissue from an FEBio model against a replacement version from an Abaqus file, alongside the rest of both models for context. Drag to rotate, scroll to zoom.</h2>
   <canvas class="gl" id="gl"></canvas>
   <div class="panel">
     <h1>AVW comparison</h1>
     <div class="row">
       <span class="swatch" style="background:var(--pt-context)"></span>
-      <label for="tg-rest">Model (without AVW)</label>
+      <label for="tg-rest">FEBio model (without AVW)</label>
       <span class="count" id="cnt-rest">__REST_COUNT__</span>
       <input type="checkbox" id="tg-rest" checked>
+    </div>
+    <div class="row">
+      <span class="swatch" style="background:var(--pt-abq-context)"></span>
+      <label for="tg-abq">Abaqus model (without AVW)</label>
+      <span class="count" id="cnt-abq">__ABQ_COUNT__</span>
+      <input type="checkbox" id="tg-abq" checked>
     </div>
     <div class="row">
       <span class="swatch" style="background:var(--pt-old)"></span>
@@ -188,11 +195,13 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
 (function(){
   var DATA = {
     rest:   { b64: "__REST_B64__", count: __REST_COUNT__ },
+    abq:    { b64: "__ABQ_B64__",  count: __ABQ_COUNT__ },
     old:    { b64: "__OLD_B64__",  count: __OLD_COUNT__ },
     newavw: { b64: "__NEW_B64__",  count: __NEW_COUNT__ }
   };
   var COLORS = {
     rest:   [0x4c/255, 0x6b/255, 0x8a/255],
+    abq:    [0x4c/255, 0x8f/255, 0x7a/255],
     old:    [0xd1/255, 0x57/255, 0x3f/255],
     newavw: [0xe8/255, 0xa3/255, 0x3d/255]
   };
@@ -352,7 +361,7 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
 
   var state = { yaw: 0.6, pitch: -0.35, dist: 3.2, ptSize: 2.5 };
   var defaultState = { yaw: 0.6, pitch: -0.35, dist: 3.2 };
-  var visible = { rest: true, old: true, newavw: true };
+  var visible = { rest: true, abq: true, old: true, newavw: true };
 
   function render(){
     resize();
@@ -376,8 +385,8 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
     var uSize = gl.getUniformLocation(prog, 'uSize');
     gl.uniformMatrix4fv(uMVP, false, mvp);
 
-    var order = ['rest', 'old', 'newavw'];
-    var alphas = { rest: 0.35, old: 0.75, newavw: 0.85 };
+    var order = ['rest', 'abq', 'old', 'newavw'];
+    var alphas = { rest: 0.35, abq: 0.35, old: 0.75, newavw: 0.85 };
     order.forEach(function(key){
       if (!visible[key]) return;
       gl.bindBuffer(gl.ARRAY_BUFFER, buffers[key]);
@@ -454,6 +463,7 @@ input[type="range"]:focus-visible{outline:2px solid var(--focus);outline-offset:
   }
 
   document.getElementById('tg-rest').addEventListener('change', function(e){ visible.rest = e.target.checked; });
+  document.getElementById('tg-abq').addEventListener('change', function(e){ visible.abq = e.target.checked; });
   document.getElementById('tg-old').addEventListener('change', function(e){ visible.old = e.target.checked; });
   document.getElementById('tg-new').addEventListener('change', function(e){ visible.newavw = e.target.checked; });
 

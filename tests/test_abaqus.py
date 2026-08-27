@@ -2,9 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from cobs.abaqus import read_part_nodes, read_part_nset
+from cobs.abaqus import list_part_names, read_part_nodes, read_part_nset
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample.inp"
+
+
+def test_list_part_names():
+    assert list_part_names(FIXTURE) == ["PartA", "PartB"]
 
 
 def test_read_part_nodes():

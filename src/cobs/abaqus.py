@@ -27,6 +27,18 @@ def _parse_keyword_line(line: str) -> tuple[str, dict[str, str], set[str]]:
     return keyword, params, flags
 
 
+def list_part_names(inp_path: str | Path) -> list[str]:
+    """Names of every *Part in the file, in file order."""
+    names = []
+    for raw_line in Path(inp_path).read_text().splitlines():
+        line = raw_line.strip()
+        if line.startswith("*"):
+            keyword, params, _ = _parse_keyword_line(line)
+            if keyword == "PART" and "NAME" in params:
+                names.append(params["NAME"])
+    return names
+
+
 def read_part_nodes(inp_path: str | Path, part_name: str) -> NodeMap:
     """Read the *Node block belonging to *Part, name=<part_name>."""
     nodes: NodeMap = {}

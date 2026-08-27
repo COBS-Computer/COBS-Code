@@ -14,7 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
-from cobs.abaqus import read_part_nodes, read_part_nset
+from cobs.abaqus import list_part_names, read_part_nodes, read_part_nset
 from cobs.febio import FebModel
 
 FEB_AVW_NODES_BLOCK = "OPAL325_AVW_v6-1"
@@ -36,23 +36,35 @@ def main(feb_path: str, inp_path: str, out_path: str = "avw_viewer.html") -> Non
     rest_of_model = [xyz for nid, xyz in all_nodes.items() if nid not in avw_ids]
     old_avw = [all_nodes[nid] for nid in avw_ids]
 
-    inp_nodes = read_part_nodes(inp_path, INP_AVW_PART)
-    inp_avw_ids = read_part_nset(inp_path, INP_AVW_PART, INP_AVW_NSET)
-    new_avw = [inp_nodes[nid] for nid in inp_avw_ids]
+    new_avw: list[tuple[float, float, float]] = []
+    rest_of_abaqus: list[tuple[float, float, float]] = []
+    for part_name in list_part_names(inp_path):
+        part_nodes = read_part_nodes(inp_path, part_name)
+        if part_name == INP_AVW_PART:
+            avw_node_ids = set(read_part_nset(inp_path, part_name, INP_AVW_NSET))
+            new_avw.extend(part_nodes[nid] for nid in avw_node_ids)
+            rest_of_abaqus.extend(
+                xyz for nid, xyz in part_nodes.items() if nid not in avw_node_ids
+            )
+        else:
+            rest_of_abaqus.extend(part_nodes.values())
 
     html = TEMPLATE_PATH.read_text(encoding="utf-8")
     html = html.replace("__REST_B64__", _b64(rest_of_model))
+    html = html.replace("__ABQ_B64__", _b64(rest_of_abaqus))
     html = html.replace("__OLD_B64__", _b64(old_avw))
     html = html.replace("__NEW_B64__", _b64(new_avw))
     html = html.replace("__REST_COUNT__", str(len(rest_of_model)))
+    html = html.replace("__ABQ_COUNT__", str(len(rest_of_abaqus)))
     html = html.replace("__OLD_COUNT__", str(len(old_avw)))
     html = html.replace("__NEW_COUNT__", str(len(new_avw)))
 
     Path(out_path).write_text(html, encoding="utf-8")
     print(f"Wrote {out_path}")
-    print(f"Model (without AVW): {len(rest_of_model)} nodes")
-    print(f"Old AVW (FEBio):     {len(old_avw)} nodes")
-    print(f"New AVW (Abaqus):    {len(new_avw)} nodes")
+    print(f"FEBio model (without AVW):  {len(rest_of_model)} nodes")
+    print(f"Abaqus model (without AVW): {len(rest_of_abaqus)} nodes")
+    print(f"Old AVW (FEBio):            {len(old_avw)} nodes")
+    print(f"New AVW (Abaqus):           {len(new_avw)} nodes")
 
 
 if __name__ == "__main__":
